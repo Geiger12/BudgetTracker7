@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Budget Tracker</title>
+<meta name="description" content="Track which bills you have paid, and when.">
+<meta name="theme-color" content="#76913f" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#6f8a3a" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root {
+  --bg:#eef0f3; --card:#ffffff; --panel:#f4f5f3; --fg:#1b2333; --muted:#667085; --line:#e1e5ea; --track:#e4e7ec;
+  --navy:#1f3d73; --olive:#76913f; --green:#19a35a; --amber:#f5b400; --red:#e5372f; --blue:#4f7bd0; --blue-soft:#b4c6ea;
+  --bad:#c62828; --bad-soft:#fde8e6; --warn:#8a5a00; --warn-soft:#fdf0cc; --ok:#13804a; --ok-soft:#e1f3e8;
+  --shadow:0 1px 2px rgba(16,24,40,.06), 0 6px 16px rgba(16,24,40,.05);
+  color-scheme: light;
+  box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#0e131c; --card:#171f2c; --panel:#1b2434; --fg:#edf1f7; --muted:#9aa6b8; --line:#2a3548; --track:#2c3749;
+    --navy:#2a4f94; --olive:#6f8a3a; --green:#2cc275; --amber:#f7bf2a; --red:#ff6a60; --blue:#6f96e6; --blue-soft:#41557f;
+    --bad:#ff8a80; --bad-soft:#3b1f1c; --warn:#f2b45c; --warn-soft:#3a2d14; --ok:#6fdca1; --ok-soft:#173326;
+    --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#0e131c; --card:#171f2c; --panel:#1b2434; --fg:#edf1f7; --muted:#9aa6b8; --line:#2a3548; --track:#2c3749;
+  --navy:#2a4f94; --olive:#6f8a3a; --green:#2cc275; --amber:#f7bf2a; --red:#ff6a60; --blue:#6f96e6; --blue-soft:#41557f;
+  --bad:#ff8a80; --bad-soft:#3b1f1c; --warn:#f2b45c; --warn-soft:#3a2d14; --ok:#6fdca1; --ok-soft:#173326;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 22px 16px 56px; }
+h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; font-weight: 750; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { border:1px solid var(--line); background:var(--card); border-radius:10px; padding:7px 12px; min-height:38px; }
+.btn:hover { border-color: var(--navy); }
+.btn.primary { background:var(--navy); color:#fff; border-color:var(--navy); }
+.btn.small { padding:3px 10px; min-height:30px; font-size:13px; }
+.btn.danger { color: var(--bad); }
+.btn:focus-visible, .sw:focus-visible, input:focus-visible, select:focus-visible, .nav:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.banner { margin:12px 0 0; padding:10px 14px; border-radius:10px; background:var(--warn-soft); color:var(--warn); font-size:14px; }
+
+/* status strip */
+.strip { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:1px; background:rgba(255,255,255,.32); border-radius:14px; overflow:hidden; margin-top:16px; box-shadow:var(--shadow); color:#fff; }
+.strip .cell { background:var(--olive); padding:10px 14px; min-width:0; }
+.strip .lab { font-size:11px; letter-spacing:.09em; text-transform:uppercase; opacity:.88; font-weight:600; }
+.strip .val { font-weight:700; display:flex; align-items:center; gap:8px; min-height:38px; flex-wrap:wrap; }
+.strip select { background:#fff; color:#1b2333; border:0; border-radius:8px; font-weight:700; min-height:36px; max-width:100%; flex:1 1 110px; font-size:15px; }
+.strip .btn.small { background:rgba(255,255,255,.2); border-color:rgba(255,255,255,.55); color:#fff; }
+.monthnav { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.monthnav #monthLabel { min-width:112px; text-align:center; }
+.nav { background:rgba(255,255,255,.2); border:0; color:#fff; border-radius:8px; min-width:34px; min-height:34px; font-size:18px; line-height:1; padding:0 8px; }
+.nav.txt { font-size:12px; font-weight:600; }
+.dot { width:14px; height:14px; border-radius:50%; box-shadow:0 0 0 2px rgba(255,255,255,.8); flex:none; }
+.dot.green { background:var(--green); } .dot.amber { background:var(--amber); } .dot.red { background:var(--red); }
+#monthLabel .short { display:none; }
+@media (max-width:760px) {
+  .strip { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  #monthLabel .full { display:none; } #monthLabel .short { display:inline; }
+  .monthnav #monthLabel { min-width:0; }
+}
+
+
+/* summary + cards */
+.summary { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; }
+.summary h2 { font-size:14px; margin:0 0 6px; }
+.summary ul { list-style:none; margin:0; padding:0; }
+.summary li { display:flex; gap:8px; font-size:14px; color:var(--fg); padding:1px 0; }
+.summary li::before { content:"›"; color:var(--muted); }
+.donuts { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-top:12px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; min-width:0; }
+.ptitle { display:block; width:max-content; max-width:100%; margin:0 auto 10px; background:var(--olive); color:#fff; font-weight:700; font-size:14px; padding:5px 18px; border-radius:8px; text-align:center; }
+.ptitle.navy { background:var(--navy); }
+.donut svg { display:block; margin:0 auto; overflow:visible; width:140px; height:140px; }
+.donut .dbig { font-size:22px; font-weight:750; fill:var(--fg); }
+.donut .dsmall { font-size:11px; fill:var(--muted); }
+.legend { display:flex; flex-wrap:wrap; gap:3px 12px; justify-content:center; font-size:12px; color:var(--muted); margin-top:8px; }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
+
+/* section bars */
+.bar-title { background:var(--navy); color:#fff; text-align:center; font-weight:700; padding:9px 14px; border-radius:12px 12px 0 0; position:relative; }
+.bar-title .count { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-size:12px; font-weight:500; opacity:.85; }
+@media (max-width:480px) { .bar-title .count { position:static; transform:none; display:block; font-size:11px; } }
+section.group, #schedule:not(:empty), #planned:not(:empty) { margin-top:16px; }
+.list { background:var(--card); border:1px solid var(--line); border-top:0; border-radius:0 0 14px 14px; overflow:hidden; box-shadow:var(--shadow); }
+.weeks { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; background:var(--panel); padding:10px; border:1px solid var(--line); border-top:0; border-radius:0 0 14px 14px; }
+.week { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px; min-width:0; }
+.week.now { border-color:var(--navy); box-shadow:0 0 0 1px var(--navy); }
+.week h4 { margin:0 0 4px; font-size:12px; color:var(--muted); font-weight:600; }
+.chip { display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; border-left:4px solid var(--blue); background:var(--panel); border-radius:6px; padding:4px 6px; margin-top:4px; font-size:12px; min-width:0; }
+.chip b { font-variant-numeric:tabular-nums; min-width:16px; }
+.chip .n { flex:1 1 9ch; min-width:min-content; overflow-wrap:normal; word-break:normal; }
+.chip .a { font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; margin-left:auto; }
+.chip.paid { border-color:var(--green); opacity:.7; } .chip.paid .n { text-decoration:line-through; text-decoration-thickness:1px; }
+.chip.overdue { border-color:var(--red); } .chip.soon { border-color:var(--amber); } .chip.inc { border-color:var(--green); }
+.none { font-size:12px; color:var(--muted); padding:4px 0; }
+.chart svg { display:block; overflow:visible; max-width:100%; }
+.chart text { font-size:11px; fill:var(--muted); font-family:inherit; }
+.chart .grid { stroke:var(--line); }
+
+/* rows */
+.row { padding:12px 14px; border-top:1px solid var(--line); }
+.row:first-child { border-top:0; }
+.line { display:flex; align-items:center; gap:12px; }
+.sw { flex:none; width:46px; height:28px; border-radius:99px; border:0; background:var(--track); position:relative; padding:0; transition:background .15s; }
+.sw::after { content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .15s; }
+.sw[aria-checked="true"] { background:var(--green); }
+.sw[aria-checked="true"]::after { transform:translateX(18px); }
+.main { flex:1; min-width:0; }
+.name { font-weight:600; overflow-wrap:anywhere; }
+.row.paid .name { color:var(--muted); text-decoration: line-through; text-decoration-thickness:1px; }
+.meta { color:var(--muted); font-size:13px; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; }
+.tag { font-size:12px; padding:1px 8px; border-radius:99px; background:var(--track); color:var(--muted); }
+.tag.bad { background:var(--bad-soft); color:var(--bad); }
+.tag.warn { background:var(--warn-soft); color:var(--warn); }
+.tag.ok { background:var(--ok-soft); color:var(--ok); }
+.amt { font-variant-numeric:tabular-nums; font-weight:650; white-space:nowrap; }
+.amt.in { color:var(--ok); }
+.detail { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:10px 0 0 58px; font-size:13px; color:var(--muted); }
+.detail label { display:flex; align-items:center; gap:6px; }
+textarea { width:100%; font:inherit; font-size:14px; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; resize:vertical; }
+input, select { font:inherit; font-size:14px; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:5px 8px; min-height:34px; }
+input[type=number] { width: 104px; }
+input.day { width: 64px; }
+.controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 0 58px; font-size:13px; color:var(--muted); }
+.bar { height:8px; background:var(--track); border-radius:99px; overflow:hidden; margin-top:8px; }
+.bar > i { display:block; height:100%; background:var(--navy); border-radius:99px; transition:width .25s ease; }
+.bar.over > i { background:var(--red); }
+.toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.callout { background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--navy); border-radius:12px; padding:10px 14px; margin-top:12px; font-size:14px; }
+.callout .btn { margin:2px 0; }
+.panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-top:16px; box-shadow:var(--shadow); }
+.panel h3 { margin:0 0 10px; font-size:16px; }
+.panel h3 + .sub { margin:-4px 0 10px; }
+.fields { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+.fields label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); }
+.fields input, .fields select { width:100%; }
+.actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+.empty { padding:28px 16px; text-align:center; color:var(--muted); }
+.foot { display:flex; gap:8px; flex-wrap:wrap; margin-top:26px; }
+.vrow .vline { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.vrow .main { min-width:150px; }
+.vrow .spent { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+@media (max-width:480px) { .detail, .controls { margin-left:0; } }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+@media (max-width:560px) {
+  .donuts { grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+  .donuts .card { padding:10px 6px; }
+  .donuts .ptitle { font-size:12px; padding:4px 8px; margin-bottom:6px; }
+  .donut svg { width:100%; max-width:104px; height:auto; }
+  .legend { flex-direction:column; align-items:center; gap:2px; font-size:11px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Budget Tracker</h1>
+    <p class="sub">Switch an item on when you’ve paid it. The date is filled in for you and you can change it.</p>
+  </header>
+  <div class="strip" id="strip"></div>
+  <div class="toolbar" id="toolbar">
+    <button class="btn" id="addBtn">+ Add item</button>
+    <button class="btn" id="manageBtn">Edit items</button>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn" id="importBtn">Import</button>
+  </div>
+  <div id="shareHost"></div>
+  <div id="importHost"></div>
+  <div id="addHost"></div>
+  <div id="budgetHost"></div>
+  <div id="restoreHost"></div>
+  <div id="banner"></div>
+  <div id="sampleHost"></div>
+  <section class="summary" id="summary"></section>
+  <div class="donuts" id="donuts"></div>
+  <section id="schedule"></section>
+  <div id="lists"></div>
+  <section id="planned"></section>
+  <div class="foot">
+    <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+  </div>
+  <p class="sub" style="margin-top:14px">Your budgets are saved on this device only. Use Share to send one to another device or person.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const pad = (n) => String(n).padStart(2, "0");
+  const isoOf = (y, m, d) => y + "-" + pad(m + 1) + "-" + pad(d);           // m is 0-based
+  const todayISO = () => { const t = new Date(); return isoOf(t.getFullYear(), t.getMonth(), t.getDate()); };
+  const dayNum = (y, m, d) => Math.round(Date.UTC(y, m, d) / 864e5);
+  const fromDayNum = (n) => { const t = new Date(n * 864e5); return { y: t.getUTCFullYear(), m: t.getUTCMonth(), d: t.getUTCDate() }; };
+  const daysIn = (y, m) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return { y, m: m - 1, d }; };
+  const niceDate = (iso) => { const p = parseISO(iso); const w = new Date(Date.UTC(p.y, p.m, p.d)).getUTCDay(); return DOW[w] + ", " + MONTHS[p.m].slice(0, 3) + " " + p.d; };
+  const fmt = (v) => { const n = Math.abs(v); const s = Number.isInteger(+n.toFixed(2)) ? n.toLocaleString("en-CA", { maximumFractionDigits: 0 }) : n.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return (v < 0 ? "−$" : "$") + s; };
+
+  const state = { items: [], pay: new Map(), y: new Date().getFullYear(), m: new Date().getMonth(), manage: false, adding: false, ready: true, mode: "saved", note: "", budgets: {}, activeId: null, panel: false, pending: null, renaming: null, importText: "", sharing: false, importOpen: false };
+  let itemsCol = null, payCol = null;
+
+  /* ---------- storage: this device's localStorage, one entry holding every budget ---------- */
+  const KEY = "budget-tracker:v2", OLD_KEY = "budget-tracker:v1";
+  const TYPES = ["income", "bill", "variable"];
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const uid = () => "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const slug = (s) => (String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "budget").slice(0, 40);
+  const curName = () => (state.budgets[state.activeId] || {}).name || "My budget";
+  function loadActive() {
+    const b = state.budgets[state.activeId];
+    state.items = Array.isArray(b.items) ? b.items : [];
+    state.pay = new Map(Object.entries(b.pay || {}));
+  }
+  function load() {
+    let fresh = false, seeded = false, added = false;
+    try {
+      let d = null;
+      const raw = localStorage.getItem(KEY);
+      if (raw) d = JSON.parse(raw);
+      else {
+        fresh = true;
+        const old = localStorage.getItem(OLD_KEY);           // single-budget version: carry it over
+        if (old) { fresh = false; const o = JSON.parse(old), id = uid(); d = { active: id, budgets: { [id]: { name: "My budget", items: o.items || [], pay: o.pay || {} } } }; }
+      }
+      if (d && d.budgets && Object.keys(d.budgets).length) { state.budgets = d.budgets; state.activeId = d.budgets[d.active] ? d.active : Object.keys(d.budgets)[0]; seeded = !!d.seeded; }
+    } catch (e) { state.mode = "local"; }
+    if (!state.activeId || !state.budgets[state.activeId]) { state.budgets = {}; state.activeId = uid(); state.budgets[state.activeId] = fresh ? (() => { const it = sampleItems(); return { name: "Example budget", items: it, pay: samplePay(it), sample: true }; })() : { name: "My budget", items: [], pay: {} }; }
+    if (!fresh && !seeded) { state.budgets[uid()] = exampleBudget(); added = true; }     // existing installs get the example once, so it shows in the list
+    loadActive();
+    if (fresh || added) persist();      // keep the example stable from the first visit
+  }
+  function persist() {
+    const b = state.budgets[state.activeId];
+    b.items = state.items; b.pay = Object.fromEntries(state.pay);
+    if (state.mode === "local") return;
+    try { localStorage.setItem(KEY, JSON.stringify({ version: 2, active: state.activeId, budgets: state.budgets, seeded: true })); }
+    catch (e) { state.mode = "local"; }
+  }
+  function switchTo(id) { if (!state.budgets[id]) return; persist(); state.activeId = id; loadActive(); state.manage = false; state.adding = false; state.panel = false; state.renaming = null; state.note = ""; persist(); render(); }
+  function deleteBudget(id) {
+    persist(); delete state.budgets[id];
+    if (!Object.keys(state.budgets).length) state.budgets[uid()] = { name: "My budget", items: [], pay: {} };
+    if (!state.budgets[state.activeId]) state.activeId = Object.keys(state.budgets)[0];
+    loadActive(); persist(); render();
+  }
+  const upsert = (arr, it) => { const i = arr.findIndex((x) => x.id === it.id); if (i >= 0) arr[i] = it; else arr.push(it); };
+  const store = {
+    setItem(it) { state.budgets[state.activeId].sample = false; upsert(state.items, it); persist(); render(); },
+    delItem(id) { state.budgets[state.activeId].sample = false; state.items = state.items.filter((x) => x.id !== id); for (const [k, v] of Array.from(state.pay)) if (v.item === id) state.pay.delete(k); persist(); render(); },
+    setPay(key, p) { state.pay.set(key, p); persist(); render(); },
+    delPay(key) { state.pay.delete(key); persist(); render(); }
+  };
+
+  /* ---------- backup and restore (one file per budget) ---------- */
+  const num = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+  const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
+  function cleanItem(x) {
+    if (!x || typeof x.id !== "string" || !x.id || !TYPES.includes(x.type) || num(x.amount) == null || x.amount < 0) return null;
+    const it = { id: str(x.id, 80), name: str(x.name, 60) || "Untitled", type: x.type, amount: x.amount, account: str(x.account, 40), order: num(x.order) || 0, freq: x.freq === "biweekly" ? "biweekly" : "monthly" };
+    if (it.freq === "biweekly") { if (!ISO.test(x.anchor || "")) return null; it.anchor = x.anchor; }
+    else if (it.type !== "variable") it.day = Math.min(31, Math.max(1, Math.round(num(x.day) || 1)));
+    return it;
+  }
+  function cleanPay(raw, items) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw || {})) {
+      if (v && typeof v.item === "string" && items.some((i) => i.id === v.item)) out[String(k).slice(0, 120)] = { item: v.item, due: ISO.test(v.due || "") ? v.due : null, on: ISO.test(v.on || "") ? v.on : todayISO(), amt: num(v.amt) ?? 0 };
+    }
+    return out;
+  }
+  async function backup() {
+    persist();
+    const name = curName();
+    const data = JSON.stringify({ app: "budget-tracker", version: 2, name, items: state.items, pay: Object.fromEntries(state.pay) }, null, 2);
+    const fileName = "budget-" + slug(name) + "-" + todayISO() + ".json";
+    const file = new File([data], fileName, { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name + " budget backup" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = fileName; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  async function stageRestore(file) {
+    try { stageData(JSON.parse(await file.text()), file.name); }
+    catch (e) { state.pending = null; state.note = "That file couldn’t be read as a budget backup."; render(); }
+  }
+  function stageData(d, fileName) {
+    try {
+      const items = (Array.isArray(d.items) ? d.items : []).map(cleanItem).filter(Boolean);
+      if (!items.length) throw new Error("no items");
+      const fromFile = String(fileName || "").replace(/\.json$/i, "").replace(/^budget-/, "").replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/[-_]+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+      const name = str(d.name, 60).trim() || fromFile || "Imported budget";
+      state.pending = { name, items, pay: cleanPay(d.pay, items), fileName: fileName || "pasted text" };
+      state.note = ""; state.panel = false; state.importOpen = false; state.sharing = false; render();
+      const rh = document.getElementById("restoreHost"); if (rh && rh.scrollIntoView) rh.scrollIntoView({ block: "nearest" });
+    } catch (e) { state.pending = null; state.note = "That doesn’t look like a budget link or backup."; render(); }
+  }
+
+  /* ---------- move a budget without files: link or text ---------- */
+  const b64u = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+  const unb64u = (t) => { t = t.replace(/-/g, "+").replace(/_/g, "/"); while (t.length % 4) t += "="; const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+  async function pipe(Stream, kind, bytes) { const s = new Stream(kind), w = s.writable.getWriter(); w.write(bytes); w.close(); return new Uint8Array(await new Response(s.readable).arrayBuffer()); }
+  async function toToken(obj) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    if (typeof CompressionStream !== "undefined") { try { return "z." + b64u(await pipe(CompressionStream, "deflate-raw", bytes)); } catch (e) { /* fall through */ } }
+    return "u." + b64u(bytes);
+  }
+  async function fromToken(tok) {
+    const kind = tok.slice(0, 1), bytes = unb64u(tok.slice(2));
+    if (kind === "z") {
+      if (typeof DecompressionStream === "undefined") throw new Error("needs newer browser");
+      return JSON.parse(new TextDecoder().decode(await pipe(DecompressionStream, "deflate-raw", bytes)));
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+  function payload(withHistory) {
+    persist();
+    return { app: "budget-tracker", version: 2, name: curName(), items: state.items, pay: withHistory ? Object.fromEntries(state.pay) : {} };
+  }
+  async function makeLink(withHistory) { return location.href.split("#")[0] + "#b=" + await toToken(payload(withHistory)); }
+  async function importText(text) {
+    const t = String(text || "").trim();
+    if (!t) { state.note = "Paste a budget link or backup text first."; render(); return; }
+    try {
+      let d;
+      const hit = t.match(/[#?&]b=([uz]\.[A-Za-z0-9_-]+)/) || t.match(/^([uz]\.[A-Za-z0-9_-]+)$/);
+      if (hit) d = await fromToken(hit[1]);
+      else if (t[0] === "{") d = JSON.parse(t);
+      else throw new Error("unrecognised");
+      state.importText = ""; stageData(d, "");
+    } catch (e) { state.note = /newer/.test(e.message) ? "This link needs iOS 16.4 or newer to open." : "That doesn’t look like a budget link or backup."; render(); }
+  }
+  async function copyText(text, okMsg) {
+    try { await navigator.clipboard.writeText(text); state.note = okMsg; }
+    catch (e) { state.note = "Couldn’t copy automatically. Try Share instead."; }
+    render();
+  }
+  async function shareLink(withHistory) {
+    const link = await makeLink(withHistory);
+    if (navigator.share) { try { await navigator.share({ title: curName() + " budget", text: "Budget Tracker: " + curName(), url: link }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    copyText(link, "Link copied. Paste it into the app on your other device.");
+  }
+
+  function applyRestore(target, newName, mode) {
+    const p = state.pending; if (!p) return;
+    persist();
+    let id, label;
+    if (target === "new") {
+      id = uid(); label = newName.trim() || p.name;
+      const samples = Object.keys(state.budgets).filter((k) => state.budgets[k].sample);
+      if (samples.length === 1 && Object.keys(state.budgets).length === 1) delete state.budgets[samples[0]];     // a lone, untouched example makes way
+      const taken = Object.values(state.budgets).map((b) => b.name.toLowerCase());
+      if (taken.includes(label.toLowerCase())) { let n = 2; while (taken.includes((label + " (" + n + ")").toLowerCase())) n++; label += " (" + n + ")"; }
+      state.budgets[id] = { name: label, items: p.items, pay: p.pay };
+    } else {
+      id = target; const b = state.budgets[id]; label = b.name;
+      if (mode === "merge") {
+        const map = new Map((b.items || []).map((i) => [i.id, i]));
+        for (const i of p.items) map.set(i.id, i);
+        b.items = Array.from(map.values()); b.pay = { ...(b.pay || {}), ...p.pay };
+      } else { b.items = p.items; b.pay = p.pay; }
+    }
+    state.activeId = id; loadActive();
+    state.pending = null; state.panel = false; state.manage = false; state.adding = false;
+    state.note = "Restored into “" + label + "” (" + state.items.length + " items).";
+    persist(); render();
+  }
+  function exampleBudget() { const it = sampleItems(); return { name: "Example budget", items: it, pay: samplePay(it), sample: true }; }
+  function addExample(open) {
+    persist();
+    const existing = Object.keys(state.budgets).find((k) => state.budgets[k].sample);
+    let id = existing;
+    if (!id) {
+      id = uid(); state.budgets[id] = exampleBudget();
+      const taken = Object.values(state.budgets).filter((b) => b !== state.budgets[id]).map((b) => b.name.toLowerCase());
+      if (taken.includes("example budget")) state.budgets[id].name = "Example budget (2)";
+    }
+    if (open) { state.activeId = id; loadActive(); state.panel = false; state.manage = false; state.adding = false; state.note = ""; }
+    persist(); render();
+  }
+  function sampleItems() {
+    const t = new Date(); const back = (t.getDay() + 2) % 7;         // most recent Friday
+    const f = new Date(t.getFullYear(), t.getMonth(), t.getDate() - back);
+    const mk = (n, id, name, type, amount, day, account) => ({ id: "sample-" + id, name, type, amount, freq: "monthly", ...(day ? { day } : {}), account, order: n });
+    return [
+      { id: "sample-pay", name: "Paycheck", type: "income", amount: 2150, freq: "biweekly", anchor: isoOf(f.getFullYear(), f.getMonth(), f.getDate()), account: "Chequing", order: 1 },
+      mk(2, "rent", "Rent", "bill", 1350, 1, "E-transfer"),
+      mk(3, "streaming", "Streaming", "bill", 18, 5, "Credit card"),
+      mk(4, "power", "Electricity", "bill", 95, 8, "Auto-pay"),
+      mk(5, "gym", "Gym", "bill", 30, 10, "Credit card"),
+      mk(6, "internet", "Internet", "bill", 65, 12, "Credit card"),
+      mk(7, "phone", "Phone", "bill", 55, 15, "Credit card"),
+      mk(8, "car", "Car insurance", "bill", 140, 20, "Auto-pay"),
+      mk(9, "savings", "Savings transfer", "bill", 150, 21, "Chequing"),
+      mk(10, "card", "Credit card payment", "bill", 200, 25, "Chequing"),
+      mk(11, "groceries", "Groceries", "variable", 450, 0, "Chequing"),
+      mk(12, "gas", "Gas", "variable", 120, 0, "Chequing"),
+      mk(13, "dining", "Dining out", "variable", 150, 0, "Chequing"),
+      mk(14, "fun", "Fun money", "variable", 80, 0, "Chequing")
+    ];
+  }
+  function samplePay(items) {
+    // Pretend the last two months, and the days so far this month, have been tracked, so the example looks lived in.
+    const out = {}, t = new Date(), ty = t.getFullYear(), tm = t.getMonth(), td = t.getDate(), tISO = todayISO(), earlier = [0.93, 1.04];
+    for (let back = 2; back >= 0; back--) {
+      let mm = tm - back, yy = ty; while (mm < 0) { mm += 12; yy--; }
+      for (const it of items) for (const o of occurrences(it, yy, mm)) {
+        if (it.type === "variable") {
+          const f = back === 0 ? 0.9 * td / daysIn(yy, mm) : earlier[2 - back];
+          out[o.key] = { item: it.id, due: null, on: isoOf(yy, mm, back === 0 ? td : daysIn(yy, mm)), amt: Math.round(it.amount * f / 5) * 5 };
+        } else if (o.due < tISO) out[o.key] = { item: it.id, due: o.due, on: o.due, amt: it.amount };
+      }
+    }
+    return out;
+  }
+  function loadSample() { state.items = sampleItems(); state.pay = new Map(Object.entries(samplePay(state.items))); state.budgets[state.activeId].sample = true; persist(); render(); }
+  function startBlank() {
+    const b = state.budgets[state.activeId];
+    b.items = []; b.pay = {}; b.sample = false; if (b.name === "Example budget") b.name = "My budget";
+    loadActive(); state.manage = false; persist(); render();
+  }
+
+  /* ---------- schedule ---------- */
+  function occurrences(item, y, m) {
+    const out = [];
+    if (item.type === "variable") { out.push({ item, due: null, key: item.id + "_" + y + "-" + pad(m + 1) }); return out; }
+    if (item.freq === "biweekly" && item.anchor) {
+      const a = parseISO(item.anchor), aN = dayNum(a.y, a.m, a.d);
+      const first = dayNum(y, m, 1), last = dayNum(y, m, daysIn(y, m));
+      let n = Math.ceil((first - aN) / 14);
+      for (let d = aN + n * 14; d <= last; d += 14) { const p = fromDayNum(d); const due = isoOf(p.y, p.m, p.d); out.push({ item, due, key: item.id + "_" + due }); }
+      return out;
+    }
+    const day = Math.min(Math.max(1, Math.round(item.day || 1)), daysIn(y, m));
+    const due = isoOf(y, m, day);
+    out.push({ item, due, key: item.id + "_" + due });
+    return out;
+  }
+  const daysUntil = (iso) => dayNum(...Object.values(parseISO(iso))) - dayNum(...Object.values(parseISO(todayISO())));
+
+  /* ---------- tiny DOM helper (text only, never innerHTML) ---------- */
+  function h(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === false || v == null) continue;
+      if (k === "class") e.className = v;
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+      else if (v === true) e.setAttribute(k, "");
+      else e.setAttribute(k, v);
+    }
+    for (const k of kids.flat()) { if (k == null || k === false) continue; e.append(k.nodeType ? k : document.createTextNode(k)); }
+    return e;
+  }
+
+  /* ---------- budget selector, manage panel, restore panel ---------- */
+  function budgetRow(id) {
+    const b = state.budgets[id], active = id === state.activeId;
+    const count = (active ? state.items : b.items || []).length;
+    if (state.renaming === id) {
+      const inp = h("input", { type: "text", value: b.name, maxlength: "60", "aria-label": "New name" });
+      return h("div", { class: "row" }, h("div", { class: "line" }, inp,
+        h("button", { class: "btn small primary", onclick: () => { const n = inp.value.trim(); if (n) { b.name = n; persist(); } state.renaming = null; render(); } }, "Save"),
+        h("button", { class: "btn small", onclick: () => { state.renaming = null; render(); } }, "Cancel")));
+    }
+    let armed = false;
+    const del = h("button", { class: "btn small danger", onclick: () => { if (!armed) { armed = true; del.textContent = "Tap again to delete"; return; } deleteBudget(id); } }, "Delete");
+    return h("div", { class: "row" }, h("div", { class: "line" },
+      h("div", { class: "main" }, h("div", { class: "name" }, b.name), h("div", { class: "meta" }, count + (count === 1 ? " item" : " items"), active ? h("span", { class: "tag ok" }, "Open") : null)),
+      active ? null : h("button", { class: "btn small", onclick: () => switchTo(id) }, "Open"),
+      h("button", { class: "btn small", onclick: () => { state.renaming = id; render(); } }, "Rename"), del));
+  }
+
+  function renderBudgets() {
+    document.title = curName() + " · Budget Tracker";
+    const ids = Object.keys(state.budgets).sort((a, b) => state.budgets[a].name.localeCompare(state.budgets[b].name));
+    const bar = document.getElementById("budgetCell"); bar.replaceChildren();
+    const sel = h("select", { id: "budgetSel", "aria-label": "Choose budget" }, ids.map((id) => h("option", { value: id }, state.budgets[id].name)));
+    sel.value = state.activeId;
+    sel.addEventListener("change", () => switchTo(sel.value));
+    bar.append(sel, h("button", { class: "btn small", onclick: () => { state.panel = !state.panel; state.pending = null; render(); } }, state.panel ? "Close" : "Manage"));
+
+    const host = document.getElementById("budgetHost"); host.replaceChildren();
+    if (state.panel) {
+      const nameIn = h("input", { type: "text", placeholder: "e.g. Johnson household", maxlength: "60" });
+      const err = h("div", { class: "sub", role: "alert" });
+      const create = h("button", { class: "btn primary", onclick: () => {
+        const n = nameIn.value.trim(); if (!n) { err.textContent = "Please enter a name."; return; }
+        persist(); const id = uid(); state.budgets[id] = { name: n, items: [], pay: {} }; state.activeId = id; loadActive();
+        state.panel = false; state.manage = false; state.adding = false; state.note = ""; persist(); render();
+      } }, "Create and open");
+      host.append(h("div", { class: "panel" }, h("h3", {}, "Budgets"),
+        h("div", { class: "fields" }, h("label", {}, "New, empty budget", nameIn)), err, h("div", { class: "actions" }, create, h("button", { class: "btn", onclick: () => addExample(true) }, Object.values(state.budgets).some((b) => b.sample) ? "Open the example budget" : "Add an example budget")),
+        h("div", { class: "list", style: "margin-top:16px" }, ids.map(budgetRow)),
+        h("details", { style: "margin-top:16px" }, h("summary", { class: "sub", style: "cursor:pointer" }, "Backup files"),
+          h("div", { class: "actions" },
+            h("button", { class: "btn", onclick: backup }, "Save a backup file"),
+            h("button", { class: "btn", onclick: () => document.getElementById("restoreFile").click() }, "Restore from a file…")))));
+    }
+
+    const rh = document.getElementById("restoreHost"); rh.replaceChildren();
+    if (state.pending) {
+      const p = state.pending;
+      const match = ids.find((id) => state.budgets[id].name.toLowerCase() === p.name.toLowerCase());
+      const target = h("select", { "aria-label": "Restore into" }, h("option", { value: "new" }, "A new budget"), ids.map((id) => h("option", { value: id }, "Existing: " + state.budgets[id].name)));
+      target.value = match || "new";
+      const nameIn = h("input", { type: "text", value: p.name, maxlength: "60", "aria-label": "Name for the new budget" });
+      const mode = h("select", { "aria-label": "How to restore" }, h("option", { value: "replace" }, "Replace everything in it"), h("option", { value: "merge" }, "Merge: add and update, keep the rest"));
+      const nameF = h("label", {}, "Name for the new budget", nameIn), modeF = h("label", {}, "How to restore", mode);
+      const warn = h("div", { class: "sub", role: "status" });
+      const sync = () => {
+        const isNew = target.value === "new";
+        nameF.hidden = !isNew; modeF.hidden = isNew; warn.hidden = isNew;
+        if (!isNew) warn.textContent = mode.value === "replace" ? "This overwrites what is saved in “" + state.budgets[target.value].name + "”." : "Items with the same id are updated; everything else in “" + state.budgets[target.value].name + "” stays.";
+      };
+      target.addEventListener("change", sync); mode.addEventListener("change", sync);
+      const loneExample = ids.length === 1 && state.budgets[ids[0]].sample;
+      const showMatch = match && !loneExample;
+      rh.append(h("div", { class: "panel" }, h("h3", {}, "Import “" + p.name + "”?"),
+        h("p", { class: "sub" }, p.items.length + (p.items.length === 1 ? " item" : " items") + (Object.keys(p.pay).length ? ", " + Object.keys(p.pay).length + " payments recorded" : "")), p.hint ? h("p", { class: "banner" }, p.hint) : null,
+        loneExample ? h("p", { class: "sub" }, "This replaces the example budget.") : null,
+        h("div", { class: "actions" },
+          h("button", { class: "btn primary", onclick: () => applyRestore("new", p.name, "replace") }, showMatch ? "Add as a new budget" : "Import"),
+          showMatch ? h("button", { class: "btn", onclick: () => applyRestore(match, "", "replace") }, "Replace “" + state.budgets[match].name + "”") : null,
+          showMatch ? h("button", { class: "btn", onclick: () => applyRestore(match, "", "merge") }, "Merge into it") : null,
+          h("button", { class: "btn", onclick: () => { state.pending = null; render(); } }, "Cancel")),
+        h("details", { style: "margin-top:12px" }, h("summary", { class: "sub", style: "cursor:pointer" }, "Choose another budget…"),
+          h("div", { class: "fields", style: "margin-top:10px" }, h("label", {}, "Import into", target), nameF, modeF), warn,
+          h("div", { class: "actions" }, h("button", { class: "btn", onclick: () => applyRestore(target.value, nameIn.value, mode.value) }, "Import with these options")))));
+      sync();
+    }
+  }
+
+  function renderShareImport() {
+    const sh = document.getElementById("shareHost"); sh.replaceChildren();
+    if (state.sharing) sh.append(h("div", { class: "panel" }, h("h3", {}, "Share “" + curName() + "”"),
+      h("p", { class: "sub" }, "Send a link. The other person copies it, opens Budget Tracker and taps Import."),
+      h("div", { class: "actions" },
+        h("button", { class: "btn primary", onclick: () => shareLink(false) }, "Share setup"),
+        h("button", { class: "btn", onclick: () => shareLink(true) }, "Share with paid history"),
+        h("button", { class: "btn", onclick: () => { state.sharing = false; render(); } }, "Close")),
+      h("p", { class: "sub", style: "margin-top:10px" }, "Setup is your items and amounts. It leaves out what you have marked paid.")));
+    const ih = document.getElementById("importHost"); ih.replaceChildren();
+    if (state.importOpen) {
+      const box = h("textarea", { id: "importText", rows: "3", placeholder: "Paste a budget link here", "aria-label": "Budget link", oninput: (e) => { state.importText = e.target.value; } });
+      box.value = state.importText;
+      ih.append(h("div", { class: "panel" }, h("h3", {}, "Import a budget"),
+        h("p", { class: "sub" }, "Copy a budget link first, then tap Paste."), box,
+        h("div", { class: "actions" },
+          h("button", { class: "btn primary", onclick: async () => { let t = box.value; try { t = (await navigator.clipboard.readText()) || t; } catch (e) { /* paste into the box instead */ } importText(t); } }, "Paste"),
+          h("button", { class: "btn", onclick: () => importText(box.value) }, "Import"),
+          h("button", { class: "btn", onclick: () => { state.importOpen = false; render(); } }, "Close"))));
+    }
+  }
+  function renderSample() {
+    const host = document.getElementById("sampleHost"); host.replaceChildren();
+    const b = state.budgets[state.activeId];
+    if (b && b.sample) host.append(h("div", { class: "callout" }, h("b", {}, "This is an example budget."), " The names and amounts are made up. Switch things on to try it, tap Edit items to make it yours, or ", h("button", { class: "btn small", onclick: startBlank }, "start with a blank budget"), "."));
+  }
+
+  /* ---------- render ---------- */
+  const $ = (id) => document.getElementById(id);
+  const svgEl = (tag, attrs) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); return e; };
+  const goToday = () => { const t = new Date(); state.y = t.getFullYear(); state.m = t.getMonth(); render(); };
+
+  function render() {
+    const { y, m } = state;
+    const banner = $("banner"); banner.replaceChildren();
+    if (state.mode === "local") banner.append(h("div", { class: "banner" }, "This browser isn’t letting the page save, so your progress will reset when you close it."));
+    else if (state.note) banner.append(h("div", { class: "banner" }, state.note));
+
+    const incomes = [], bills = [], vars = [];
+    for (const it of state.items.slice().sort((a, b) => (a.order || 0) - (b.order || 0))) {
+      for (const o of occurrences(it, y, m)) (it.type === "income" ? incomes : it.type === "variable" ? vars : bills).push(o);
+    }
+    const byDue = (a, b) => (a.due || "").localeCompare(b.due || "") || (a.item.order || 0) - (b.item.order || 0);
+    incomes.sort(byDue); bills.sort(byDue);
+
+    const paidAmt = (o) => (state.pay.get(o.key) || {}).amt;
+    const isPaid = (o) => state.pay.has(o.key);
+    const t = todayISO();
+    const expIn = incomes.reduce((s, o) => s + o.item.amount, 0);
+    const gotIn = incomes.reduce((s, o) => s + (isPaid(o) ? paidAmt(o) ?? o.item.amount : 0), 0);
+    const billsPaidCount = bills.filter(isPaid).length;
+    const toPay = bills.filter((o) => !isPaid(o)).reduce((s, o) => s + o.item.amount, 0);
+    const overdueList = bills.filter((o) => !isPaid(o) && o.due < t);
+    const soon = bills.filter((o) => !isPaid(o) && o.due >= t && daysUntil(o.due) <= 3);
+    const upcoming = bills.filter((o) => !isPaid(o) && o.due >= t && daysUntil(o.due) > 3);
+    const varSpent = vars.reduce((s, o) => s + (paidAmt(o) || 0), 0);
+    const varBudget = vars.reduce((s, o) => s + o.item.amount, 0);
+    const level = overdueList.length ? "red" : (soon.length || varSpent > varBudget) ? "amber" : "green";
+
+    renderStrip(level);
+    renderBudgets();
+    renderShareImport();
+    renderSample();
+    renderOverview({ incomes, bills, vars, isPaid, paidAmt, t, expIn, gotIn, billsPaidCount, toPay, overdueList, soon, upcoming, varSpent, varBudget });
+
+    const lists = $("lists"); lists.replaceChildren();
+    if (!state.items.length) { lists.append(h("div", { class: "panel empty" }, h("p", {}, "Nothing here yet. Add your first paycheck or bill, paste a budget link, or try a sample budget."), h("div", { class: "actions", style: "justify-content:center" }, h("button", { class: "btn primary", onclick: () => { state.adding = true; render(); } }, "Add an item"), h("button", { class: "btn", onclick: () => { state.importOpen = true; render(); } }, "Import a budget"), h("button", { class: "btn", onclick: loadSample }, "Load a sample budget")))); }
+    if (incomes.length) lists.append(group("Money in", incomes.map(row)));
+    if (bills.length) lists.append(group("Bills", bills.map(row), billsPaidCount + " of " + bills.length + " paid"));
+    if (vars.length) lists.append(group("Everyday spending", vars.map(vrow), "Enter what you’ve spent so far"));
+    renderAdd();
+    $("manageBtn").textContent = state.manage ? "Done editing" : "Edit items";
+  }
+
+  function renderStrip(level) {
+    const strip = $("strip"); strip.replaceChildren();
+    const cell = (label, ...kids) => h("div", { class: "cell" }, h("div", { class: "lab" }, label), h("div", { class: "val" }, kids));
+    const tp = parseISO(todayISO());
+    strip.append(
+      cell("Budget", h("div", { id: "budgetCell", style: "display:flex;gap:8px;align-items:center;width:100%;flex-wrap:wrap" })),
+      cell("Month", h("div", { class: "monthnav" },
+        h("button", { class: "nav", id: "prev", "aria-label": "Previous month", onclick: () => step(-1) }, "‹"),
+        h("span", { id: "monthLabel", "aria-live": "polite" }, h("span", { class: "full" }, MONTHS[state.m] + " " + state.y), h("span", { class: "short" }, MONTHS[state.m].slice(0, 3) + " " + state.y)),
+        h("button", { class: "nav", id: "next", "aria-label": "Next month", onclick: () => step(1) }, "›"),
+        h("button", { class: "nav txt", id: "today", onclick: goToday }, "Today"))),
+      cell("Status date", niceDate(todayISO()) + ", " + tp.y),
+      cell("Health", h("span", { class: "dot " + level, role: "img", "aria-label": level }), { green: "Green", amber: "Amber", red: "Red" }[level]));
+  }
+
+  function donutCard(title, slices, big, small, f) {
+    const R = 52, CIRC = 2 * Math.PI * R, live = slices.filter((s) => s[1] > 0), total = live.reduce((s, x) => s + x[1], 0);
+    const svg = svgEl("svg", { viewBox: "0 0 140 140", width: "140", height: "140", role: "img", "aria-label": title + ": " + (live.length ? live.map((s) => s[0] + " " + f(s[1])).join(", ") : "nothing yet") });
+    const ring = (color, len, off) => { const c = svgEl("circle", { cx: 70, cy: 70, r: R, fill: "none", "stroke-width": 18, transform: "rotate(-90 70 70)", "stroke-dasharray": len + " " + (CIRC - len), "stroke-dashoffset": -off }); c.style.stroke = color; return c; };
+    svg.append(ring("var(--track)", CIRC, 0));
+    let off = 0;
+    for (const [, v, col] of live) { const len = v / total * CIRC, gap = live.length > 1 ? 2 : 0; svg.append(ring(col, Math.max(0.5, len - gap), off)); off += len; }
+    const tb = svgEl("text", { x: 70, y: 70, "text-anchor": "middle", class: "dbig" }); tb.textContent = big; svg.append(tb);
+    const ts = svgEl("text", { x: 70, y: 88, "text-anchor": "middle", class: "dsmall" }); ts.textContent = small; svg.append(ts);
+    return h("div", { class: "card donut" }, h("span", { class: "ptitle navy" }, title), svg,
+      h("div", { class: "legend" }, live.length ? live.map(([n, v, col]) => h("span", {}, h("i", { style: "background:" + col }), n + " " + f(v))) : h("span", {}, "Nothing yet")));
+  }
+
+  function renderOverview(c) {
+    const sum = $("summary"), don = $("donuts"), sch = $("schedule"), pl = $("planned");
+    [sum, don, sch, pl].forEach((e) => e.replaceChildren());
+    if (!state.items.length) return;
+    const lines = [];
+    if (c.bills.length) lines.push(c.billsPaidCount + " of " + c.bills.length + " bills paid. " + fmt(c.toPay) + " still to pay.");
+    if (c.overdueList.length) { const nm = c.overdueList.map((o) => o.item.name); lines.push(c.overdueList.length + " overdue: " + nm.slice(0, 4).join(", ") + (nm.length > 4 ? " and " + (nm.length - 4) + " more" : "") + "."); }
+    const next = c.bills.find((o) => !c.isPaid(o) && o.due >= c.t);
+    if (next) lines.push("Next up: " + next.item.name + ", " + niceDate(next.due) + " (" + fmt(next.item.amount) + ").");
+    if (c.incomes.length) lines.push(fmt(c.gotIn) + " received of " + fmt(c.expIn) + " expected.");
+    if (c.vars.length) lines.push("Everyday spending: " + fmt(c.varSpent) + " of " + fmt(c.varBudget) + (c.varBudget ? " (" + Math.round(c.varSpent / c.varBudget * 100) + "%)." : "."));
+    if (lines.length) sum.append(h("h2", {}, "Month summary"), h("ul", {}, lines.map((x) => h("li", {}, x))));
+
+    const cnt = (n) => String(n);
+    const over = c.varSpent > c.varBudget;
+    don.append(
+      donutCard("Bills", [["Paid", c.billsPaidCount, "var(--green)"], ["Upcoming", c.upcoming.length, "var(--blue)"], ["Due soon", c.soon.length, "var(--amber)"], ["Overdue", c.overdueList.length, "var(--red)"]], c.billsPaidCount + "/" + c.bills.length, "paid", cnt),
+      donutCard("Money in", [["Received", c.gotIn, "var(--green)"], ["Expected", Math.max(0, c.expIn - c.gotIn), "var(--blue-soft)"]], c.expIn ? Math.round(c.gotIn / c.expIn * 100) + "%" : "–", "received", fmt),
+      donutCard("Spending", over ? [["Budget used", c.varBudget, "var(--navy)"], ["Over budget", c.varSpent - c.varBudget, "var(--red)"]] : [["Spent", c.varSpent, "var(--navy)"], ["Left", c.varBudget - c.varSpent, "var(--blue-soft)"]], c.varBudget ? Math.round(c.varSpent / c.varBudget * 100) + "%" : "–", "of budget", fmt));
+
+    // schedule: one card per week of the month
+    const { y, m } = state, dim = daysIn(y, m), tdy = parseISO(c.t);
+    const ranges = [[1, 7], [8, 14], [15, 21], [22, 28]].concat(dim > 28 ? [[29, dim]] : []);
+    const dated = c.incomes.concat(c.bills).filter((o) => o.due).sort((a, b) => a.due.localeCompare(b.due));
+    const weeks = ranges.map(([lo, hi]) => {
+      const here = dated.filter((o) => { const d = parseISO(o.due).d; return d >= lo && d <= hi; });
+      const now = tdy.y === y && tdy.m === m && tdy.d >= lo && tdy.d <= hi;
+      return h("div", { class: "week" + (now ? " now" : "") }, h("h4", {}, MONTHS[m].slice(0, 3) + " " + lo + (hi > lo ? "–" + hi : "")),
+        here.length ? here.map((o) => {
+          const paid = c.isPaid(o), inc = o.item.type === "income", d = daysUntil(o.due);
+          const cls = paid ? "paid" : inc ? "inc" : o.due < c.t ? "overdue" : d <= 3 ? "soon" : "";
+          return h("div", { class: "chip " + cls }, h("b", {}, String(parseISO(o.due).d)), h("span", { class: "n" }, o.item.name), h("span", { class: "a" }, (inc ? "+" : "") + fmt(o.item.amount)));
+        }) : h("div", { class: "none" }, "Nothing due"));
+    });
+    sch.append(h("div", { class: "bar-title" }, "Schedule"), h("div", { class: "weeks" }, weeks));
+
+    // planned vs actual spending, six months ending with the month shown
+    const pts = [];
+    for (let k = 5; k >= 0; k--) {
+      let mm = m - k, yy = y; while (mm < 0) { mm += 12; yy--; }
+      let planned = 0, actual = 0, any = false;
+      for (const it of state.items) { if (it.type === "income") continue; for (const o of occurrences(it, yy, mm)) { planned += it.amount; const p = state.pay.get(o.key); if (p) { actual += p.amt ?? it.amount; any = true; } } }
+      pts.push({ label: MONTHS[mm].slice(0, 3), planned, actual: any ? actual : null });
+    }
+    pl.append(h("div", { class: "bar-title" }, "Planned vs actual spending"), h("div", { class: "card chart", style: "border-radius:0 0 14px 14px;border-top:0" }, chartPlanned(pts), pts.some((p) => p.actual != null) ? null : h("div", { class: "sub", style: "text-align:center;margin-top:6px" }, "Mark bills paid and enter spending to see your actual line fill in.")));
+  }
+
+  function chartPlanned(pts) {
+    const W = Math.max(280, Math.min(900, window.innerWidth - 32 - 30)), H = 210, L = 54, R = 12, T = 30, B = 26;
+    const maxV = Math.max(1, ...pts.map((p) => Math.max(p.planned, p.actual || 0)));
+    const stepV = maxV > 8000 ? 2000 : maxV > 4000 ? 1000 : maxV > 1500 ? 500 : 250, top = Math.ceil(maxV / stepV) * stepV;
+    const x = (i) => L + (W - L - R) * (i / (pts.length - 1)), yv = (v) => T + (H - T - B) * (1 - v / top);
+    const svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": "Planned and actual spending for the last six months" });
+    for (let v = 0; v <= top; v += stepV) {
+      svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), class: "grid" }));
+      const tx = svgEl("text", { x: L - 8, y: yv(v) + 4, "text-anchor": "end" }); tx.textContent = "$" + d3ish(v); svg.append(tx);
+    }
+    pts.forEach((p, i) => { const tx = svgEl("text", { x: x(i), y: H - 8, "text-anchor": "middle" }); tx.textContent = p.label; svg.append(tx); });
+    const line = (key, color) => {
+      let dPath = "", pen = false;
+      pts.forEach((p, i) => { if (p[key] == null) { pen = false; return; } dPath += (pen ? "L" : "M") + x(i) + " " + yv(p[key]) + " "; pen = true; });
+      if (dPath) { const pth = svgEl("path", { d: dPath, fill: "none", "stroke-width": 2.5, "stroke-linejoin": "round" }); pth.style.stroke = color; svg.append(pth); }
+      pts.forEach((p, i) => { if (p[key] == null) return; const c = svgEl("circle", { cx: x(i), cy: yv(p[key]), r: 4, "stroke-width": 2 }); c.style.fill = "var(--card)"; c.style.stroke = color; svg.append(c); });
+    };
+    line("planned", "var(--navy)"); line("actual", "var(--olive)");
+    [["Planned", "var(--navy)"], ["Actual", "var(--olive)"]].forEach(([n, col], i) => {
+      const cx = L + i * 90; const c = svgEl("circle", { cx, cy: 12, r: 5 }); c.style.fill = col; svg.append(c);
+      const tx = svgEl("text", { x: cx + 10, y: 16 }); tx.textContent = n; svg.append(tx);
+    });
+    return svg;
+  }
+  const d3ish = (v) => (v >= 1000 ? (v / 1000) + "k" : String(v));
+
+  function group(title, rows, right) {
+    return h("section", { class: "group" }, h("div", { class: "bar-title" }, title, right ? h("span", { class: "count" }, right) : null), h("div", { class: "list" }, rows));
+  }
+
+  function row(o) {
+    const it = o.item, p = state.pay.get(o.key), paid = !!p;
+    const d = daysUntil(o.due);
+    let tag = null;
+    if (paid) tag = h("span", { class: "tag ok" }, it.type === "income" ? "Received" : "Paid");
+    else if (d < 0) tag = h("span", { class: "tag bad" }, it.type === "income" ? "Not received yet" : "Overdue");
+    else if (d === 0) tag = h("span", { class: "tag warn" }, "Due today");
+    else if (d <= 3) tag = h("span", { class: "tag warn" }, "Due in " + d + (d === 1 ? " day" : " days"));
+    const sw = h("button", {
+      class: "sw", role: "switch", "aria-checked": String(paid),
+      "aria-label": (it.type === "income" ? "Mark received: " : "Mark paid: ") + it.name + ", " + niceDate(o.due),
+      onclick: () => paid ? store.delPay(o.key) : store.setPay(o.key, { item: it.id, due: o.due, on: todayISO(), amt: it.amount })
+    });
+    const amtShown = paid && p.amt != null ? p.amt : it.amount;
+    const r = h("div", { class: "row" + (paid ? " paid" : "") },
+      h("div", { class: "line" }, sw,
+        h("div", { class: "main" }, h("div", { class: "name" }, it.name), h("div", { class: "meta" }, h("span", {}, niceDate(o.due) + (it.account ? " · " + it.account : "")), tag)),
+        h("div", { class: "amt" + (it.type === "income" ? " in" : "") }, (it.type === "income" ? "+" : "") + fmt(amtShown))));
+    if (paid) r.append(h("div", { class: "detail" },
+      h("label", {}, it.type === "income" ? "Received on" : "Paid on", h("input", { type: "date", value: p.on || todayISO(), "aria-label": "Date " + it.name + " was paid",
+        onchange: (e) => { if (e.target.value) store.setPay(o.key, { ...p, on: e.target.value }); } })),
+      h("label", {}, "Amount", h("input", { type: "number", step: "0.01", min: "0", value: String(p.amt ?? it.amount), "aria-label": "Amount actually paid for " + it.name,
+        onchange: (e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) store.setPay(o.key, { ...p, amt: v }); } }))));
+    if (state.manage) r.append(manageControls(it));
+    return r;
+  }
+
+  function vrow(o) {
+    const it = o.item, p = state.pay.get(o.key), spent = p ? p.amt || 0 : 0, over = spent > it.amount;
+    const r = h("div", { class: "row vrow" },
+      h("div", { class: "vline" },
+        h("div", { class: "main" }, h("div", { class: "name" }, it.name), h("div", { class: "meta" }, "Budget " + fmt(it.amount) + (over ? "" : " · " + fmt(it.amount - spent) + " left"), over ? h("span", { class: "tag bad" }, fmt(spent - it.amount) + " over") : null)),
+        h("div", { class: "spent" }, "Spent $", h("input", { type: "number", step: "0.01", min: "0", value: spent ? String(spent) : "", placeholder: "0", "aria-label": "Amount spent on " + it.name,
+          onchange: (e) => { const v = parseFloat(e.target.value); if (!v || v <= 0) store.delPay(o.key); else store.setPay(o.key, { item: it.id, due: null, on: (p && p.on) || todayISO(), amt: v }); } }))),
+      h("div", { class: "bar" + (over ? " over" : ""), role: "img", "aria-label": fmt(spent) + " of " + fmt(it.amount) + " spent" }, h("i", { style: "width:" + Math.min(100, Math.round((it.amount ? spent / it.amount : 0) * 100)) + "%" })));
+    if (state.manage) r.append(manageControls(it));
+    return r;
+  }
+
+  function manageControls(it) {
+    let armed = false;
+    const rm = h("button", { class: "btn small danger", onclick: () => { if (!armed) { armed = true; rm.textContent = "Tap again to remove"; return; } store.delItem(it.id); } }, "Remove");
+    return h("div", { class: "controls" },
+      h("label", {}, "Name", h("input", { type: "text", value: it.name, maxlength: "60", onchange: (e) => { const v = e.target.value.trim(); if (v) store.setItem({ ...it, name: v }); } })),
+      h("label", {}, "Account", h("input", { type: "text", value: it.account || "", maxlength: "40", onchange: (e) => store.setItem({ ...it, account: e.target.value.trim() }) })),
+      h("label", {}, "Amount $", h("input", { type: "number", step: "0.01", min: "0", value: String(it.amount), onchange: (e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) store.setItem({ ...it, amount: v }); } })),
+      it.type !== "variable" && it.freq !== "biweekly" ? h("label", {}, "Due day", h("input", { class: "day", type: "number", min: "1", max: "31", value: String(it.day || 1), onchange: (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= 31) store.setItem({ ...it, day: v }); } })) : null,
+      rm);
+  }
+
+  /* ---------- add item ---------- */
+  function renderAdd() {
+    const host = document.getElementById("addHost"); host.replaceChildren();
+    if (!state.adding) return;
+    const f = {};
+    const field = (label, el) => h("label", {}, label, el);
+    f.name = h("input", { type: "text", placeholder: "e.g. Gym", maxlength: "60" });
+    f.type = h("select", {}, h("option", { value: "bill" }, "Bill"), h("option", { value: "income" }, "Money in"), h("option", { value: "variable" }, "Everyday spending"));
+    f.amount = h("input", { type: "number", step: "0.01", min: "0", placeholder: "0.00" });
+    f.freq = h("select", {}, h("option", { value: "monthly" }, "Every month"), h("option", { value: "biweekly" }, "Every 2 weeks"));
+    f.day = h("input", { type: "number", min: "1", max: "31", placeholder: "1–31" });
+    f.anchor = h("input", { type: "date", value: todayISO() });
+    f.account = h("input", { type: "text", placeholder: "Optional", maxlength: "40" });
+    const dayF = field("Due day of month", f.day), freqF = field("How often", f.freq), anchorF = field("First date", f.anchor);
+    const sync = () => {
+      const v = f.type.value === "variable", bi = f.freq.value === "biweekly" && !v;
+      freqF.hidden = v; dayF.hidden = v || bi; anchorF.hidden = !bi;
+    };
+    f.type.addEventListener("change", sync); f.freq.addEventListener("change", sync);
+    const err = h("div", { class: "sub", role: "alert" });
+    const save = h("button", { class: "btn primary", onclick: () => {
+      const name = f.name.value.trim(), amount = parseFloat(f.amount.value), type = f.type.value;
+      if (!name) { err.textContent = "Please enter a name."; return; }
+      if (isNaN(amount) || amount < 0) { err.textContent = "Please enter an amount."; return; }
+      const it = { id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) + "-" + Date.now().toString(36), name, type, amount, account: f.account.value.trim(), order: Math.max(0, ...state.items.map((x) => x.order || 0)) + 1 };
+      if (type === "variable") { it.freq = "monthly"; }
+      else if (f.freq.value === "biweekly") { if (!f.anchor.value) { err.textContent = "Please pick the first date."; return; } it.freq = "biweekly"; it.anchor = f.anchor.value; }
+      else { const d = parseInt(f.day.value, 10); if (!(d >= 1 && d <= 31)) { err.textContent = "Please enter a due day from 1 to 31."; return; } it.freq = "monthly"; it.day = d; }
+      store.setItem(it); state.adding = false; render();
+    } }, "Save item");
+    host.append(h("div", { class: "panel" }, h("h3", {}, "Add an item"),
+      h("div", { class: "fields" }, field("Name", f.name), field("Type", f.type), field("Amount ($)", f.amount), freqF, dayF, anchorF, field("Account", f.account)),
+      err, h("div", { class: "actions" }, save, h("button", { class: "btn", onclick: () => { state.adding = false; render(); } }, "Cancel"))));
+    sync();
+  }
+
+  /* ---------- controls ---------- */
+  const step = (n) => { let m = state.m + n, y = state.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } state.m = m; state.y = y; render(); };
+  document.getElementById("addBtn").addEventListener("click", () => { state.adding = !state.adding; render(); if (state.adding) document.getElementById("addHost").scrollIntoView({ block: "nearest" }); });
+  document.getElementById("manageBtn").addEventListener("click", () => { state.manage = !state.manage; render(); });
+
+  document.getElementById("shareBtn").addEventListener("click", () => { state.sharing = !state.sharing; state.importOpen = false; render(); });
+  document.getElementById("importBtn").addEventListener("click", async () => {
+    state.importOpen = true; state.sharing = false; state.panel = false; render();
+    try { const t = await navigator.clipboard.readText(); if (t && /[uz]\.[A-Za-z0-9_-]{20,}|^\s*\{/.test(t)) { importText(t); return; } } catch (e) { /* the box is there to paste into */ }
+    const bx = document.getElementById("importText"); if (bx) bx.focus();
+  });
+  document.getElementById("restoreFile").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) stageRestore(f); });
+
+  let lastW = window.innerWidth;
+  window.addEventListener("resize", () => { if (window.innerWidth !== lastW) { lastW = window.innerWidth; render(); } });
+
+  /* ---------- start ---------- */
+  load();
+  render();
+  const m = location.hash.match(/^#b=([uz]\.[A-Za-z0-9_-]+)$/);
+  if (m) {
+    history.replaceState(null, "", location.href.split("#")[0]);       // keep the data out of the address bar and history
+    fromToken(m[1]).then((d) => { stageData(d, ""); const inApp = window.navigator.standalone || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches); if (!inApp && state.pending) { state.pending.hint = "Tip: on iPhone, links open in Safari, which keeps its own data. To use this in your home-screen app, copy the link, open the app, then tap Manage and Paste."; render(); } })
+      .catch((e) => { state.note = /newer/.test(e.message) ? "This link needs iOS 16.4 or newer to open." : "That budget link couldn’t be read."; render(); });
+  }
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
